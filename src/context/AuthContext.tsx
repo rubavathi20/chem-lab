@@ -66,6 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(s?.user ?? null);
       if (!s) {
         setProfile(null);
+      } else if (s.user) {
+        // Fetch profile when a new session is detected
+        fetchProfile(s.user.id);
       }
     });
 

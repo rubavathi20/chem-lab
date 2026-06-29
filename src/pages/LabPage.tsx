@@ -665,8 +665,8 @@ export default function LabPage() {
   }
 
   useEffect(() => {
-    if (experimentId && profile) loadExperiment();
-  }, [experimentId, profile]);
+    if (experimentId) loadExperiment();
+  }, [experimentId]); // profile is handled inside loadExperiment
 
   useEffect(() => {
     if (experiment) setReactionState(getReactionState(experiment.title, currentStep, experiment.steps.length));
@@ -681,16 +681,18 @@ export default function LabPage() {
     if (!data) { navigate('/dashboard'); return; }
     setExperiment(data as Experiment);
 
-    const { data: session } = await supabase.from('attendance_sessions').insert({
-      student_id: profile!.id,
-      experiment_id: experimentId,
-      session_date: new Date().toISOString().split('T')[0],
-      entry_time: new Date().toISOString(),
-      device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
-      status: 'active',
-    }).select().maybeSingle();
-
-    if (session) setSessionId(session.id);
+    // Create attendance session only when profile is available
+    if (profile?.id) {
+      const { data: session } = await supabase.from('attendance_sessions').insert({
+        student_id: profile.id,
+        experiment_id: experimentId,
+        session_date: new Date().toISOString().split('T')[0],
+        entry_time: new Date().toISOString(),
+        device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+        status: 'active',
+      }).select().maybeSingle();
+      if (session) setSessionId(session.id);
+    }
 
     const welcome = `Hi there! Welcome to "${data.title}"! I'm your AI chemistry tutor. This is a ${data.difficulty} level experiment and takes about ${data.estimated_duration_minutes} minutes. ${data.objectives[0] ? `Today you'll learn: ${data.objectives[0]}.` : ''} Use the Calculations tab for formulas and Notes to record observations. Ready? Click Next Step to begin!`;
 
@@ -714,21 +716,22 @@ export default function LabPage() {
   }
 
   async function completeExperiment() {
-    if (!experiment || !sessionId || !profile) return;
+    if (!experiment) return;
     const timeTaken = Math.round((Date.now() - startTime) / 60000);
     const steps = experiment.steps as ExperimentStep[];
     const calcScore = Math.max(60, 100 - hintsUsed * 5 - (steps.length - currentStep - 1) * 10);
     setScore(calcScore);
     setCompleted(true);
 
-    await supabase.from('experiment_results').insert({
-      session_id: sessionId, student_id: profile.id, experiment_id: experiment.id,
-      score: calcScore, steps_completed: currentStep + 1, total_steps: steps.length,
-      observations, ai_hints_used: hintsUsed, time_taken_minutes: timeTaken,
-      mistakes_made: [], reaction_outcomes: { finalColor: reactionState.color, temperature: reactionState.temperature },
-    });
-
-    await supabase.from('attendance_sessions').update({ exit_time: new Date().toISOString(), status: 'completed' }).eq('id', sessionId);
+    if (sessionId && profile?.id) {
+      await supabase.from('experiment_results').insert({
+        session_id: sessionId, student_id: profile.id, experiment_id: experiment.id,
+        score: calcScore, steps_completed: currentStep + 1, total_steps: steps.length,
+        observations, ai_hints_used: hintsUsed, time_taken_minutes: timeTaken,
+        mistakes_made: [], reaction_outcomes: { finalColor: reactionState.color, temperature: reactionState.temperature },
+      });
+      await supabase.from('attendance_sessions').update({ exit_time: new Date().toISOString(), status: 'completed' }).eq('id', sessionId);
+    }
 
     const done = `Wonderful work! You've completed the "${experiment.title}" experiment with a score of ${calcScore} percent! ${calcScore >= 80 ? 'That was outstanding performance!' : calcScore >= 60 ? 'Great effort!' : 'Keep practicing to improve!'} Download your PDF report from the top bar.`;
     setAiMessages(prev => [...prev, { role: 'ai', text: done, type: 'info' }]);
@@ -777,15 +780,17 @@ export default function LabPage() {
   }
 
   function handleExportPDF() {
-    if (!experiment || !profile) return;
+    if (!experiment) return;
     setExporting(true);
     const pdfSteps = experiment.steps as ExperimentStep[];
     const html = generatePDFContent(experiment, {
       score, steps_completed: currentStep + 1, total_steps: pdfSteps.length,
       observations, ai_hints_used: hintsUsed,
       time_taken_minutes: Math.round((Date.now() - startTime) / 60000),
-      aiMessages, studentName: profile.full_name,
-      studentId: profile.student_id ?? '', className: profile.class_name,
+      aiMessages,
+      studentName: profile?.full_name ?? 'Student',
+      studentId: profile?.student_id ?? '',
+      className: profile?.class_name ?? '',
       calcLog, reactionState,
     });
     const blob = new Blob([html], { type: 'text/html' });

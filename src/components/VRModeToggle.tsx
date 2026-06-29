@@ -1,4 +1,4 @@
-import { Monitor, Smartphone, Eye, Minimize2, Gauge, Compass } from 'lucide-react';
+import { Monitor, Smartphone, Eye, Minimize2, Gauge, Compass, Headphones } from 'lucide-react';
 import { useVR } from '../context/VRContext';
 
 export default function VRModeToggle() {
@@ -7,10 +7,15 @@ export default function VRModeToggle() {
     isStereoMode,
     isDeviceOrientation,
     isPerfMode,
+    isWebXRSupported,
+    isWebXRActive,
     toggleVRMode,
     toggleStereoMode,
     toggleDeviceOrientation,
     togglePerfMode,
+    startWebXRSession,
+    endWebXRSession,
+    initAudio,
   } = useVR();
 
   if (isVRMode) {
@@ -62,6 +67,13 @@ export default function VRModeToggle() {
           <span className="hidden sm:inline">60fps</span>
         </button>
         <button
+          onClick={initAudio}
+          title="Enable lab sounds"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 hover:text-slate-200 rounded-lg text-xs font-medium transition-all"
+        >
+          <Headphones className="w-3.5 h-3.5" />
+        </button>
+        <button
           onClick={toggleVRMode}
           title="Exit VR mode"
           className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-500/20 text-red-300 border border-red-500/40 rounded-lg text-xs font-medium hover:bg-red-500/30 transition-all"
@@ -74,14 +86,37 @@ export default function VRModeToggle() {
   }
 
   return (
-    <button
-      onClick={toggleVRMode}
-      title="Enter VR mode - Use your phone in a VR headset for an immersive 360° lab experience"
-      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-200 border border-cyan-500/40 rounded-lg text-xs font-medium hover:from-cyan-500/30 hover:to-blue-500/30 transition-all"
-    >
-      <Monitor className="w-3.5 h-3.5" />
-      <span className="hidden sm:inline">VR Mode</span>
-      <Eye className="w-3 h-3 text-cyan-400" />
-    </button>
+    <div className="flex items-center gap-1.5">
+      {isWebXRSupported && (
+        <button
+          onClick={isWebXRActive ? endWebXRSession : startWebXRSession}
+          title={isWebXRActive ? 'Exit WebXR VR headset mode' : 'Enter WebXR VR headset mode'}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            isWebXRActive
+              ? 'bg-green-500/20 text-green-300 border border-green-500/40'
+              : 'bg-purple-500/20 text-purple-200 border border-purple-500/40 hover:bg-purple-500/30'
+          }`}
+        >
+          <Eye className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">{isWebXRActive ? 'Exit WebXR' : 'VR Headset'}</span>
+        </button>
+      )}
+      <button
+        onClick={toggleVRMode}
+        title="Enter VR mode - Use your phone in a VR headset for an immersive 360° lab experience"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-200 border border-cyan-500/40 rounded-lg text-xs font-medium hover:from-cyan-500/30 hover:to-blue-500/30 transition-all"
+      >
+        <Monitor className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">VR Mode</span>
+        <Eye className="w-3 h-3 text-cyan-400" />
+      </button>
+      <button
+        onClick={initAudio}
+        title="Enable lab sounds"
+        className="flex items-center gap-1.5 px-2 py-1.5 bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 hover:text-slate-200 rounded-lg text-xs font-medium transition-all"
+      >
+        <Headphones className="w-3.5 h-3.5" />
+      </button>
+    </div>
   );
 }

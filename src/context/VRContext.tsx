@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { webXRManager } from '../lib/webxr';
+import { labAudio } from '../lib/audio';
 
 interface VRContextValue {
   isVRMode: boolean;
@@ -6,6 +8,8 @@ interface VRContextValue {
   isDeviceOrientation: boolean;
   isPerfMode: boolean;
   fullscreenEnabled: boolean;
+  isWebXRSupported: boolean;
+  isWebXRActive: boolean;
   enterVRMode: () => void;
   exitVRMode: () => void;
   toggleVRMode: () => void;
@@ -14,6 +18,9 @@ interface VRContextValue {
   togglePerfMode: () => void;
   requestFullscreen: () => void;
   exitFullscreen: () => void;
+  startWebXRSession: () => Promise<boolean>;
+  endWebXRSession: () => Promise<void>;
+  initAudio: () => Promise<void>;
 }
 
 const VRContext = createContext<VRContextValue | null>(null);
@@ -24,6 +31,8 @@ export function VRProvider({ children }: { children: ReactNode }) {
   const [isDeviceOrientation, setIsDeviceOrientation] = useState(false);
   const [isPerfMode, setIsPerfMode] = useState(false);
   const [fullscreenEnabled, setFullscreenEnabled] = useState(false);
+  const [isWebXRSupported, setIsWebXRSupported] = useState(false);
+  const [isWebXRActive, setIsWebXRActive] = useState(false);
 
   const requestFullscreen = useCallback(() => {
     const elem = document.documentElement;
@@ -109,6 +118,35 @@ export function VRProvider({ children }: { children: ReactNode }) {
     }
   }, [isDeviceOrientation]);
 
+  // WebXR support
+  const startWebXRSession = useCallback(async (): Promise<boolean> => {
+    const success = await webXRManager.startSession(
+      () => setIsWebXRActive(true),
+      () => setIsWebXRActive(false)
+    );
+    if (success) {
+      setIsVRMode(true);
+      setIsWebXRActive(true);
+    }
+    return success;
+  }, []);
+
+  const endWebXRSession = useCallback(async () => {
+    await webXRManager.endSession();
+    setIsWebXRActive(false);
+    setIsVRMode(false);
+  }, []);
+
+  // Audio initialization
+  const initAudio = useCallback(async () => {
+    await labAudio.init();
+  }, []);
+
+  // Check WebXR support on mount
+  useEffect(() => {
+    webXRManager.isSupported().then(setIsWebXRSupported);
+  }, []);
+
   // Handle escape key to exit VR
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -146,6 +184,8 @@ export function VRProvider({ children }: { children: ReactNode }) {
       isDeviceOrientation,
       isPerfMode,
       fullscreenEnabled,
+      isWebXRSupported,
+      isWebXRActive,
       enterVRMode,
       exitVRMode,
       toggleVRMode,
@@ -154,6 +194,9 @@ export function VRProvider({ children }: { children: ReactNode }) {
       togglePerfMode,
       requestFullscreen,
       exitFullscreen,
+      startWebXRSession,
+      endWebXRSession,
+      initAudio,
     }}>
       {children}
     </VRContext.Provider>
